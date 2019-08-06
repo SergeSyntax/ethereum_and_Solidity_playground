@@ -1,39 +1,82 @@
-import React from 'react';
-import logo from './logo.svg';
+import React, { Component } from 'react';
+import lottery from './lottery';
 import './App.css';
 import web3 from './web3';
 
-function App() {
-  // window.ethereum
-  //   .enable() // request the user to use the provider
-  //   .then(
-  //     web3.eth
-  //       .getAccounts()
-  //       .then(console.log)
-  //       .catch(console.error)
-  //   )
-  //   .catch(err => {
-  //     console.error('not approvede', err);
-  //     window.close();
-  //   });
-  return (
-    <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.js</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
-      </header>
-    </div>
-  );
+class App extends Component {
+  state = {
+    manager: '',
+    players: [],
+    balance: '',
+    value: '',
+    message: ''
+  };
+  async componentDidMount() {
+    // await window.ethereum.enable()
+    const manager = await lottery.methods.manager().call();
+    const players = await lottery.methods.getPlayers().call();
+    const balance = await web3.eth.getBalance(lottery.options.address);
+    this.setState({ manager, players, balance });
+  }
+
+  onSubmit = async e => {
+    e.preventDefault();
+    const accounts = await web3.eth.getAccounts();
+    this.setState({ message: 'Waiting on transaction success...' });
+
+    await lottery.methods.enter().send({
+      from: accounts[0],
+      value: web3.utils.toWei(this.state.value, 'ether')
+    });
+
+    this.setState({ message: 'You have been entered!' });
+  };
+
+  onClick = async () => {
+    const accounts = await web3.eth.getAccounts();
+    this.setState({ message: 'Waiting on transaction success...' });
+    await lottery.methods.pickWinner().send({
+      from: accounts[0]
+    });
+
+    this.setState({ message: 'A winner has been picked!' });
+  };
+
+  render() {
+    return (
+      <div>
+        <div>
+          <h2>Lottery Contract</h2>
+          <p>
+            This contract is managed by this {this.state.manager}
+            There are currently {this.state.players.length} people entered,
+            competing to win {web3.utils.fromWei(this.state.balance, 'ether')}{' '}
+            ether!
+          </p>
+          <hr />
+          <form onSubmit={this.onSubmit}>
+            <h4>Want to try your luck?</h4>
+            <div>
+              <label htmlFor="ether">Amount of ether to enter</label>
+              <input
+                type="text"
+                id="ether"
+                value={this.state.value}
+                onChange={event => this.setState({ value: event.target.value })}
+              />
+            </div>
+            <button>Enter</button>
+          </form>
+          <hr />
+          <h4>Ready to pick a winner?</h4>
+          <button onClick={this.onClick}>Pick a winner!</button>
+
+          <hr />
+          <h1>{this.state.message}</h1>
+        </div>
+      </div>
+    );
+  }
 }
 
 export default App;
